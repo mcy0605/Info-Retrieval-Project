@@ -1,0 +1,249 @@
+from nltk import WordNetLemmatizer
+import ast
+from Tkinter import *
+import webbrowser
+
+
+
+def callback(sentence):
+    sentence.replace(' ','+')
+    webbrowser.open_new('http://www.google.com/search?q='+sentence)
+root=Tk()
+
+def func(value):
+    print value
+def AddTo(answer):
+    root.title("ANSWER")
+    root.geometry('350x200')
+    if(len(answer)!=0):
+        var1 = StringVar(root)
+        var1.set(answer[0])
+
+        w1 = OptionMenu(root, var1, *answer,command=func(var1.get()))
+        w1.grid(row=10)
+
+        button= Button(root,text='Search',command=callback(var1.get()))
+        button.grid(row=45)
+
+
+    else:
+        link = Label(root, text="Empty Answer", fg="blue", cursor="hand2")
+        link.grid(row=30)
+        link.bind("<Button-1>", callback('How to google'))
+
+def query():
+    query = mEntry.get()
+    print "Inside query"
+    wnl = WordNetLemmatizer()
+    list_of_sentences = []
+    file = open('/home/abhay/Downloads/lol.csv','r')
+    list_of_sentences = file.readlines()
+
+    y_dataset=[]
+    x_dataset=[]
+
+    for i in range(1,20):           #5000 documents
+         l1=list_of_sentences[i].split('",')
+         l1[0] = l1[0].replace("\"[","\'[")
+         l1[0] = l1[0].replace("}]","}]\'")
+         l1[0] = l1[0].replace("\"\"", "\"")
+         #print l1[0]
+         #break
+         x_dataset.append(ast.literal_eval(l1[0]))
+         y_dataset.append(l1[1])
+
+
+    x=set();
+    y_newdata=[]
+    for word in y_dataset:
+        word = word.rstrip('\r\n')
+        word = word.rstrip('\n')
+        y_newdata.append(word)
+
+    #print y_newdata
+
+    final ={}
+    for i in range(len(x_dataset)):
+        temp=ast.literal_eval(x_dataset[i])
+        #print i
+        for j in temp:
+            lemm_value=wnl.lemmatize(j['name'])
+            if lemm_value not in final.keys():
+                final[lemm_value]=[]
+
+            final[lemm_value].append(y_newdata[i])
+
+    print "Inverted Index Postings List: "
+    print "\n\n"
+    for i in final.keys():
+        final[i].sort()
+        print (i,final[i])
+    print "\n\n"
+    print "Genres: "
+    print "\n\n"
+    for i in final.keys():
+        print i
+    print "\n\n"
+    #query = str(input("Enter query: "))
+
+
+    answer = []
+
+    query_terms = query.split()
+    for word in query_terms:
+        if (query_terms[query_terms.index(word)] != "AND"):
+            query_terms[query_terms.index(word)] = wnl.lemmatize(word)
+    #print query_terms
+    print"\n\n"
+
+    answer = []
+
+    for x in range(0, len(query_terms)):
+        if query_terms[x] == "AND":
+            query_terms.remove(query_terms[x])
+            query_terms.insert(x,'')
+            if len(answer) == 0 and query_terms[x-1]!='':
+                p1 = final[query_terms[x - 1]]
+                print query_terms[x-1]
+                print p1
+                query_terms.remove(query_terms[x-1])
+                query_terms.insert(x-1, '')
+                #p1.sort()
+                p2 = final[query_terms[x + 1]]
+                print query_terms[x+1]
+                print p2
+                query_terms.remove(query_terms[x+1])
+                query_terms.insert(x+1, '')
+                #p2.sort()
+                i = 0
+                j = 0
+                while i < len(p1) and j < len(p2):
+                    if p1[i] == p2[j]:
+                        answer.append(p1[i])
+                        i += 1
+                        j += 1
+                    elif p1[i] < p2[j]:
+                        i += 1
+                    else:
+                        j += 1
+            else:
+                p1 = final[query_terms[x + 1]]
+                query_terms.remove(query_terms[x+1])
+                query_terms.insert(x+1, '')
+                p1.sort()
+                i = 0
+                j = 0
+                while i < len(answer):
+                    flag = 0
+                    j=0
+                    while j < len(p1):
+                        if answer[i] == p1[j]:
+                            flag = 1
+                            break
+                        j += 1
+                    if flag == 0:
+                        answer.remove(answer[i])
+                    else:
+                        i+=1
+
+        elif query_terms[x] == "OR":
+            query_terms.remove(query_terms[x])
+            query_terms.insert(x, '')
+            if len(answer) == 0 and query_terms[x-1]!='':
+                p1 = final[query_terms[x - 1]]
+                query_terms.remove(query_terms[x-1])
+                query_terms.insert(x-1, '')
+                p1.sort()
+                p2 = final[query_terms[x + 1]]
+                query_terms.remove(query_terms[x+1])
+                query_terms.insert(x+1, '')
+                p2.sort()
+                i = 0
+                while i < len(p1):
+                    answer.append(p1[i])
+                    i += 1
+                i = 0
+                while i < len(p2):
+                    answer.append(p2[i])
+                    i += 1
+                answer = list(set(answer))
+            else:
+                p1 = final[query_terms[x + 1]]
+                query_terms.remove(query_terms[x+1])
+                query_terms.insert(x+1, '')
+                p1.sort()
+                i = 0
+                while i < len(p1):
+                    if answer.count(p1[i]) == 0:
+                        answer.append(p1[i])
+                    i += 1
+                answer = list(set(answer))
+        #print answer
+        #print query_terms
+    #print "\n\n"
+    print "Movies: \n\n"
+    for i in answer:
+        print i
+    AddTo(answer)
+
+
+
+GENRES=['Mystery','Romance','History','ScienceFiction','Family','Horror','Crime','Drama','Fantasy','Animation','Music','Adventure','Action','Comedy','Documentary','War','Thriller','Western']
+OP=['AND','OR']
+
+master=Tk()
+master.title('Genre Based Movie Retrieval System')
+master.geometry('350x200')
+label=Label(master,text='Select a Genre:')
+label.grid(columnspan=15,sticky=W+E)
+
+variable = StringVar(master)
+variable.set(GENRES[0])
+# default value
+w = OptionMenu(master, variable, *GENRES)
+w.grid(row=1)
+w.grid(columnspan=15)
+label=Label(master,text='Select an Operator')
+label.grid(columnspan=15,sticky=W+E)
+
+var1=StringVar(master)
+var1.set(OP[0])
+
+w1=OptionMenu(master,var1,*OP)
+w1.grid(row=10)
+w1.grid(columnspan=15)
+mEntry=Entry(master,text=" ")
+mEntry.grid(row=20)
+
+def ok():
+    if(ok.counter%2==0):
+        mEntry.insert(0,variable.get()+" ")
+    if(ok.counter%2!=0):
+        mEntry.insert(0, var1.get()+" ")
+    ok.counter+=1
+    print "inside ok: "+ str(ok.counter)
+ok.counter=0
+
+def clear():
+    mEntry.delete(0,len(mEntry.get()))
+    ok.counter=0
+OKbutton = Button(master, text="OK", command=ok)
+OKbutton.grid(row=15)
+OKbutton.grid(columnspan=15)
+
+
+Querybutton = Button(master,text="QUERY",command=query)
+Querybutton.grid(row=25)
+Querybutton.grid(columnspan=15)
+
+Clearbutton=Button (master,text="Clear",command=clear)
+Clearbutton.grid(row=25,column=35)
+#Clearbutton.grid(columnspan=25)
+
+Closebutton =Button(master,text="Close",command=master.quit)
+Closebutton.grid(row=25,column=40)
+#Closebutton.grid(columnspan=35)
+close = Button(root, text='Close', command=root.quit)
+close.grid(row=45, column=5)
+mainloop()
+
